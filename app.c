@@ -8,6 +8,7 @@
 
 #include "ev3api.h"
 #include "app.h"
+#include "utils.h"
 
 #define DEBUG
 
@@ -34,10 +35,10 @@ const int right_motor = EV3_PORT_D;
  */
 const float KSTEER=-0.25;
 const float EMAOFFSET = 0.0005f;
-const float KGYROANGLE = 7.5f;
-const float KGYROSPEED = 1.15f;
-const float KPOS = 0.07f;
-const float KSPEED = 0.1f;
+      float KGYROANGLE = 6.0f; // 7.5f
+      float KGYROSPEED = 1.4f; // 1.15f
+      float KPOS = 0.07f;
+      float KSPEED = 0.1f;
 const float KDRIVE = -0.02f;
 const float WHEEL_DIAMETER = 5.6;
 const uint32_t WAIT_TIME_MS = 5;
@@ -179,11 +180,11 @@ static bool_t keep_balance() {
     motor_pos -= motor_control_drive * interval_time;
 
     // This is the main balancing equation
-    int power = (int)((KGYROSPEED * gyro_speed +               // Deg/Sec from Gyro sensor
+    int power = (int)((KGYROSPEED * gyro_speed +                // Deg/Sec from Gyro sensor
                        KGYROANGLE * gyro_angle) / ratio_wheel + // Deg from integral of gyro
-                       KPOS       * motor_pos +                // From MotorRotaionCount of both motors
-                       KDRIVE     * motor_control_drive +       // To improve start/stop performance
-                       KSPEED     * motor_speed);              // Motor speed in Deg/Sec
+                       KPOS       * motor_pos +                 // From MotorRotationCount of both motors
+                       KSPEED     * motor_speed  +              // Motor speed in Deg/Sec
+                       KDRIVE     * motor_control_drive);       // To improve start/stop performance
 
     // Check fallen
     SYSTIM time;
@@ -284,13 +285,82 @@ static void button_clicked_handler(intptr_t button) {
     }
 }
 
-static FILE *bt = NULL;
+//static FILE *bt = NULL;
 
 void idle_task(intptr_t unused) {
     while(1) {
         //fprintf(bt, "Press 'h' for usage instructions.\n");
         tslp_tsk(1000);
     }
+}
+
+// KGYROANGLE = 7.5f;   .1
+// KGYROSPEED = 1.15f;  .01
+// KPOS       = 0.07f;  .005
+// KSPEED     = 0.1f;   .01
+void update_kparameters() {
+    const float KGYROANGLE_INC = .1;
+    const float KGYROSPEED_INC = .01;
+    const float KPOS_INC = .005;
+    const float KSPEED_INC = .01;
+    
+    const int k1_chn = 1;
+    const int k2_chn = 2;
+
+    static SYSTIM last_ir_time = 0;
+    ER ercd;
+    
+    if (last_ir_time == 0) {
+        ercd = get_tim(&last_ir_time);
+        assert(ercd == E_OK);
+    } 
+    else {
+        SYSTIM now;
+        ercd = get_tim(&now);
+        assert(ercd == E_OK);
+        if (now - last_ir_time < 250) return; // don't overflow with lots of cmds
+    }
+    
+    ir_remote_t val = ev3_infrared_sensor_get_remote(ir_sensor);
+    if (val.channel[k1_chn] & IR_RED_UP_BUTTON   ) { // inc KGYROANGLE
+        KGYROANGLE += KGYROANGLE_INC;
+    }
+    if (val.channel[k1_chn] & IR_RED_DOWN_BUTTON ) { // dec KGYROANGLE
+        KGYROANGLE -= KGYROANGLE_INC;
+    }
+    if (val.channel[k1_chn] & IR_BLUE_UP_BUTTON  ) { // inc KGYROSPEED
+        KGYROSPEED += KGYROSPEED_INC;
+    }
+    if (val.channel[k1_chn] & IR_BLUE_DOWN_BUTTON) { // dec KGYROSPEED
+        KGYROSPEED -= KGYROSPEED_INC;
+    }
+    if (val.channel[k2_chn] & IR_RED_UP_BUTTON   ) { // inc KPOS
+        KPOS += KPOS_INC;
+    }
+    if (val.channel[k2_chn] & IR_RED_DOWN_BUTTON ) { // dec KPOS
+        KPOS -= KPOS_INC;
+    }
+    if (val.channel[k2_chn] & IR_BLUE_UP_BUTTON  ) { // inc KSPEED
+        KSPEED += KSPEED_INC;
+    }
+    if (val.channel[k2_chn] & IR_BLUE_DOWN_BUTTON) { // dec KSPEED
+        KSPEED -= KSPEED_INC;
+    }
+    
+    if (val.channel[k1_chn] || val.channel[k2_chn]) {
+        ercd = get_tim(&last_ir_time);
+        assert(ercd == E_OK);
+    }
+    
+    char lcdstr[100];
+    sprintf(lcdstr, "GYANG: %1.3f", KGYROANGLE);
+    print(1, lcdstr);
+    sprintf(lcdstr, "GYSPD: %1.4f", KGYROSPEED);
+    print(2, lcdstr);
+    sprintf(lcdstr, "KPOS : %1.5f", KPOS);
+    print(3, lcdstr);
+    sprintf(lcdstr, "KSPD : %1.4f", KSPEED);
+    print(4, lcdstr);
 }
 
 uint8_t get_ir_control() {
@@ -306,7 +376,7 @@ uint8_t get_ir_control() {
         SYSTIM now;
         ercd = get_tim(&now);
         assert(ercd == E_OK);
-        if (now - last_ir_time < 1000) return 0; // don't overflow with lots of cmds
+        if (now - last_ir_time < 100) return 1; // don't overflow with lots of cmds
     }
     
     uint8_t result = 0;
@@ -324,6 +394,9 @@ uint8_t get_ir_control() {
 
     return result;
 }
+
+#define MAX_SPEED 600
+#define MAX_STEER 170
 
 void main_task(intptr_t unused) {
     // Draw information
@@ -360,12 +433,18 @@ void main_task(intptr_t unused) {
 
     // Open Bluetooth file
     //bt = ev3_serial_open_file(EV3_SERIAL_BT);
-    assert(bt != NULL);
+    //assert(bt != NULL);
 
     // Start task for printing message while idle
     act_tsk(IDLE_TASK);
+    
+    tslp_tsk(1000);
+    clearScreen();
+    print(0, "App: Gyrohunter");
 
     while(1) {
+        update_kparameters();
+        
         char* status = "IDL";
         //while (!ev3_bluetooth_is_connected()) tslp_tsk(100);
         //uint8_t c = fgetc(bt);
@@ -375,14 +454,21 @@ void main_task(intptr_t unused) {
         case 0:
             tslp_tsk(10);
             //ev3_lcd_draw_string("IDL", 0, fonth * 5);
+            motor_control_drive = 0;
+            motor_control_steer = 0;
+            status = "IDL";
+            break;
+
+        case 1:
+            tslp_tsk(10);
             status = "IDL";
             break;
 
         case 'w':
             if(motor_control_drive < 0)
                 motor_control_drive = 0;
-            else
-                motor_control_drive += 10;
+            else if (motor_control_drive < MAX_SPEED)
+                motor_control_drive += 50;
             //fprintf(bt, "motor_control_drive: %d\n", motor_control_drive);
             //ev3_lcd_draw_string("FWD", 0, fonth * 5);
             status = "FWD";
@@ -391,8 +477,8 @@ void main_task(intptr_t unused) {
         case 's':
             if(motor_control_drive > 0)
                 motor_control_drive = 0;
-            else
-                motor_control_drive -= 10;
+            else if (motor_control_drive > -MAX_SPEED)
+                motor_control_drive -= 50;
             //fprintf(bt, "motor_control_drive: %d\n", motor_control_drive);
             //ev3_lcd_draw_string("BCK", 0, fonth * 5);
             status = "BCK";
@@ -401,8 +487,8 @@ void main_task(intptr_t unused) {
         case 'a':
             if(motor_control_steer < 0)
                 motor_control_steer = 0;
-            else
-                motor_control_steer += 10;
+            else if (motor_control_steer < MAX_STEER)
+                motor_control_steer += 170;
             //fprintf(bt, "motor_control_steer: %d\n", motor_control_steer);
             //ev3_lcd_draw_string("LFT", 0, fonth * 5);
             status = "LFT";
@@ -411,8 +497,8 @@ void main_task(intptr_t unused) {
         case 'd':
             if(motor_control_steer > 0)
                 motor_control_steer = 0;
-            else
-                motor_control_steer -= 10;
+            else if (motor_control_steer > -MAX_STEER)
+                motor_control_steer -= 170;
             //fprintf(bt, "motor_control_steer: %d\n", motor_control_steer);
             //ev3_lcd_draw_string("RGT", 0, fonth * 5);
             status = "RGT";
@@ -432,7 +518,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'i':
-            fprintf(bt, "Idle task started.\n");
+            //fprintf(bt, "Idle task started.\n");
             rsm_tsk(IDLE_TASK);
             break;
 
@@ -442,6 +528,6 @@ void main_task(intptr_t unused) {
         }
         
         sprintf(lcdstr, "%s D:%d S:%d", status, motor_control_drive, motor_control_steer);
-        ev3_lcd_draw_string(lcdstr, 0, fonth * 5);
+        print(5, lcdstr);
     }
 }
