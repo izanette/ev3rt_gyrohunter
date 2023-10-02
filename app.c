@@ -29,6 +29,7 @@ const int gyro_sensor = EV3_PORT_2;
 const int ir_sensor = EV3_PORT_4;
 const int left_motor = EV3_PORT_A;
 const int right_motor = EV3_PORT_D;
+const int gun_motor = EV3_PORT_C;
 
 /**
  * Constants for the self-balance control algorithm. (Gyrohunter version)
@@ -366,6 +367,7 @@ void update_kparameters() {
 uint8_t get_ir_control() {
     static SYSTIM last_ir_time = 0;
     const int control_chn = 0;
+    const int gun_chn = 3;
     ER ercd;
     
     if (last_ir_time == 0) {
@@ -386,6 +388,7 @@ uint8_t get_ir_control() {
     else if (val.channel[control_chn] & IR_BLUE_DOWN_BUTTON) result = 's'; // backward
     else if (val.channel[control_chn] & IR_RED_UP_BUTTON   ) result = 'a'; // left
     else if (val.channel[control_chn] & IR_RED_DOWN_BUTTON ) result = 'd'; // right
+    else if (val.channel[gun_chn])                           result = 'f'; // fire!
     
     if (result) {
         ercd = get_tim(&last_ir_time);
@@ -395,10 +398,12 @@ uint8_t get_ir_control() {
     return result;
 }
 
-#define MAX_SPEED 600
+#define MAX_SPEED 800
 #define MAX_STEER 170
 
 void main_task(intptr_t unused) {
+    static SYSTIM last_gun_time = 0;
+    
     // Draw information
     lcdfont_t font = EV3_FONT_MEDIUM;
     ev3_lcd_set_font(font);
@@ -414,6 +419,8 @@ void main_task(intptr_t unused) {
     ev3_lcd_draw_string(lcdstr, 0, fonth * 3);
     sprintf(lcdstr, "Port%c:Right motor", 'A' + right_motor);
     ev3_lcd_draw_string(lcdstr, 0, fonth * 4);
+    sprintf(lcdstr, "Port%c:Gun motor", 'A' + gun_motor);
+    ev3_lcd_draw_string(lcdstr, 0, fonth * 5);
 
     // Register button handlers
     ev3_button_set_on_clicked(BACK_BUTTON, button_clicked_handler, BACK_BUTTON);
@@ -427,6 +434,7 @@ void main_task(intptr_t unused) {
     // Configure motors
     ev3_motor_config(left_motor, LARGE_MOTOR);
     ev3_motor_config(right_motor, LARGE_MOTOR);
+    ev3_motor_config(gun_motor, MEDIUM_MOTOR);
 
     // Start task for self-balancing
     act_tsk(BALANCE_TASK);
@@ -462,6 +470,20 @@ void main_task(intptr_t unused) {
         case 1:
             tslp_tsk(10);
             status = "IDL";
+            break;
+
+        case 'f':
+            {
+                SYSTIM now;
+                ER ercd = get_tim(&now);
+                assert(ercd == E_OK);
+                if (now - last_gun_time > 2000) {
+                    ev3_motor_reset_counts(gun_motor);
+                    ev3_motor_rotate(gun_motor, 3*360, 70, false);
+                    status = "GUN";
+                    get_tim(&last_gun_time);
+                }
+            }
             break;
 
         case 'w':
