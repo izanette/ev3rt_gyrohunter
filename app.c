@@ -311,16 +311,10 @@ void update_kparameters() {
     static SYSTIM last_ir_time = 0;
     ER ercd;
     
-    if (last_ir_time == 0) {
-        ercd = get_tim(&last_ir_time);
-        assert(ercd == E_OK);
-    } 
-    else {
-        SYSTIM now;
-        ercd = get_tim(&now);
-        assert(ercd == E_OK);
-        if (now - last_ir_time < 250) return; // don't overflow with lots of cmds
-    }
+    SYSTIM now;
+    ercd = get_tim(&now);
+    assert(ercd == E_OK);
+    if (now - last_ir_time < 250) return; // don't overflow with lots of cmds
     
     ir_remote_t val = ev3_infrared_sensor_get_remote(ir_sensor);
     if (val.channel[k1_chn] & IR_RED_UP_BUTTON   ) { // inc KGYROANGLE
@@ -348,20 +342,21 @@ void update_kparameters() {
         KSPEED -= KSPEED_INC;
     }
     
-    if (val.channel[k1_chn] || val.channel[k2_chn]) {
+    if (last_ir_time == 0 ||
+        val.channel[k1_chn] || val.channel[k2_chn]) {
         ercd = get_tim(&last_ir_time);
         assert(ercd == E_OK);
-    }
     
-    char lcdstr[100];
-    sprintf(lcdstr, "GYANG: %1.3f", KGYROANGLE);
-    print(1, lcdstr);
-    sprintf(lcdstr, "GYSPD: %1.4f", KGYROSPEED);
-    print(2, lcdstr);
-    sprintf(lcdstr, "KPOS : %1.5f", KPOS);
-    print(3, lcdstr);
-    sprintf(lcdstr, "KSPD : %1.4f", KSPEED);
-    print(4, lcdstr);
+        char lcdstr[100];
+        sprintf(lcdstr, "GYANG: %1.3f", KGYROANGLE);
+        print(1, lcdstr);
+        sprintf(lcdstr, "GYSPD: %1.4f", KGYROSPEED);
+        print(2, lcdstr);
+        sprintf(lcdstr, "KPOS : %1.5f", KPOS);
+        print(3, lcdstr);
+        sprintf(lcdstr, "KSPD : %1.4f", KSPEED);
+        print(4, lcdstr);
+    }
 }
 
 uint8_t get_ir_control() {
