@@ -38,7 +38,7 @@ const float KSTEER=-0.25;
 const float EMAOFFSET = 0.0005f;
       float KGYROANGLE = 6.0f; // 7.5f
       float KGYROSPEED = 1.4f; // 1.15f
-      float KPOS = 0.07f;
+      float KPOS = 0.03f; // 0.07f;
       float KSPEED = 0.1f;
 const float KDRIVE = -0.02f;
 const float WHEEL_DIAMETER = 5.6;
@@ -388,7 +388,8 @@ uint8_t get_ir_control() {
     else if (val.channel[control_chn] & IR_BLUE_DOWN_BUTTON) result = 's'; // backward
     else if (val.channel[control_chn] & IR_RED_UP_BUTTON   ) result = 'a'; // left
     else if (val.channel[control_chn] & IR_RED_DOWN_BUTTON ) result = 'd'; // right
-    else if (val.channel[gun_chn])                           result = 'f'; // fire!
+    else if (val.channel[gun_chn] & (IR_BLUE_UP_BUTTON | IR_RED_UP_BUTTON)) result = 'f'; // fire up!
+    else if (val.channel[gun_chn] & (IR_BLUE_DOWN_BUTTON | IR_RED_DOWN_BUTTON)) result = 'g'; // fire straight!
     
     if (result) {
         ercd = get_tim(&last_ir_time);
@@ -473,13 +474,17 @@ void main_task(intptr_t unused) {
             break;
 
         case 'f':
+        case 'g':
             {
                 SYSTIM now;
                 ER ercd = get_tim(&now);
                 assert(ercd == E_OK);
                 if (now - last_gun_time > 2000) {
                     ev3_motor_reset_counts(gun_motor);
-                    ev3_motor_rotate(gun_motor, 3*360, 70, false);
+                    if (c == 'f')
+                        ev3_motor_rotate(gun_motor, 3*360, 70, false);
+                    else
+                        ev3_motor_rotate(gun_motor, -3*360, 70, false);
                     status = "GUN";
                     get_tim(&last_gun_time);
                 }
