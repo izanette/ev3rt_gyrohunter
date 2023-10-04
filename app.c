@@ -399,7 +399,7 @@ uint8_t get_ir_control() {
     return result;
 }
 
-#define MAX_SPEED 800
+#define MAX_SPEED 1000
 #define MAX_STEER 170
 
 void main_task(intptr_t unused) {
