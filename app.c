@@ -480,6 +480,18 @@ void main_task(intptr_t unused) {
     tslp_tsk(1000);
     clearScreen();
     print(0, "App: Gyrohunter");
+    
+    // wait for the gyro calibration to finish
+    print(1, "Calibrating");
+    while(gyrohunter_status != RUNNING_STATUS) {
+        tslp_tsk(200);
+    }
+    
+    // go forward a bit
+    tslp_tsk(1000);
+    motor_control_drive = 100;
+    tslp_tsk(2000);
+    motor_control_drive = 0;
 
     while(1) {
         update_kparameters();
