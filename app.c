@@ -391,12 +391,18 @@ uint8_t get_ir_control() {
     uint8_t result = 0;
     
     ir_remote_t val = ev3_infrared_sensor_get_remote(ir_sensor);
-    if      (val.channel[control_chn] & IR_BLUE_UP_BUTTON  ) result = 'w'; // forward
-    else if (val.channel[control_chn] & IR_BLUE_DOWN_BUTTON) result = 's'; // backward
+    if      (val.channel[gun_chn] & (IR_BLUE_UP_BUTTON   | IR_RED_UP_BUTTON))   result = 'f'; // fire up!
+    else if (val.channel[gun_chn] & (IR_BLUE_DOWN_BUTTON | IR_RED_DOWN_BUTTON)) result = 'g'; // fire straight!
+    else if (val.channel[control_chn] & IR_BLUE_UP_BUTTON  ) 
+        if      (val.channel[control_chn] & IR_RED_UP_BUTTON   ) result = 'q'; // left forward
+        else if (val.channel[control_chn] & IR_RED_DOWN_BUTTON ) result = 'e'; // right forward
+        else                                                     result = 'w'; // forward
+    else if (val.channel[control_chn] & IR_BLUE_DOWN_BUTTON)
+        if      (val.channel[control_chn] & IR_RED_UP_BUTTON   ) result = 'z'; // left backward
+        else if (val.channel[control_chn] & IR_RED_DOWN_BUTTON ) result = 'c'; // right backward
+        else                                                     result = 's'; // backward
     else if (val.channel[control_chn] & IR_RED_UP_BUTTON   ) result = 'a'; // left
     else if (val.channel[control_chn] & IR_RED_DOWN_BUTTON ) result = 'd'; // right
-    else if (val.channel[gun_chn] & (IR_BLUE_UP_BUTTON | IR_RED_UP_BUTTON)) result = 'f'; // fire up!
-    else if (val.channel[gun_chn] & (IR_BLUE_DOWN_BUTTON | IR_RED_DOWN_BUTTON)) result = 'g'; // fire straight!
     
     if (result) {
         ercd = get_tim(&last_ir_time);
@@ -498,44 +504,88 @@ void main_task(intptr_t unused) {
             }
             break;
 
-        case 'w':
+        case 'w': // forward
             if(motor_control_drive < 0)
                 motor_control_drive = 0;
             else if (motor_control_drive < MAX_SPEED)
                 motor_control_drive += 50;
-            //fprintf(bt, "motor_control_drive: %d\n", motor_control_drive);
-            //ev3_lcd_draw_string("FWD", 0, fonth * 5);
+            motor_control_steer = 0;
             status = "FWD";
             break;
 
-        case 's':
+        case 's': // backward
             if(motor_control_drive > 0)
                 motor_control_drive = 0;
             else if (motor_control_drive > -MAX_SPEED)
                 motor_control_drive -= 50;
-            //fprintf(bt, "motor_control_drive: %d\n", motor_control_drive);
-            //ev3_lcd_draw_string("BCK", 0, fonth * 5);
+            motor_control_steer = 0;
             status = "BCK";
             break;
 
-        case 'a':
+        case 'a': // left
             if(motor_control_steer < 0)
                 motor_control_steer = 0;
             else if (motor_control_steer < MAX_STEER)
                 motor_control_steer += 170;
-            //fprintf(bt, "motor_control_steer: %d\n", motor_control_steer);
-            //ev3_lcd_draw_string("LFT", 0, fonth * 5);
+            motor_control_drive = 0;
             status = "LFT";
             break;
 
-        case 'd':
+        case 'd': // right
             if(motor_control_steer > 0)
                 motor_control_steer = 0;
             else if (motor_control_steer > -MAX_STEER)
                 motor_control_steer -= 170;
-            //fprintf(bt, "motor_control_steer: %d\n", motor_control_steer);
-            //ev3_lcd_draw_string("RGT", 0, fonth * 5);
+            motor_control_drive = 0;
             status = "RGT";
+            break;
+
+        case 'q': // left forward
+            if(motor_control_steer < 0)
+                motor_control_steer = 0;
+            else if (motor_control_steer < MAX_STEER)
+                motor_control_steer += 170;
+            if(motor_control_drive < 0)
+                motor_control_drive = 0;
+            else if (motor_control_drive < MAX_SPEED)
+                motor_control_drive += 50;
+            status = "LFW";
+            break;
+
+        case 'e': // right forward
+            if(motor_control_steer > 0)
+                motor_control_steer = 0;
+            else if (motor_control_steer > -MAX_STEER)
+                motor_control_steer -= 170;
+            if(motor_control_drive < 0)
+                motor_control_drive = 0;
+            else if (motor_control_drive < MAX_SPEED)
+                motor_control_drive += 50;
+            status = "RFW";
+            break;
+
+        case 'z': // left backward
+            if(motor_control_steer < 0)
+                motor_control_steer = 0;
+            else if (motor_control_steer < MAX_STEER)
+                motor_control_steer += 170;
+            if(motor_control_drive > 0)
+                motor_control_drive = 0;
+            else if (motor_control_drive > -MAX_SPEED)
+                motor_control_drive -= 50;
+            status = "LBK";
+            break;
+
+        case 'c': // right backward
+            if(motor_control_steer > 0)
+                motor_control_steer = 0;
+            else if (motor_control_steer > -MAX_STEER)
+                motor_control_steer -= 170;
+            if(motor_control_drive > 0)
+                motor_control_drive = 0;
+            else if (motor_control_drive > -MAX_SPEED)
+                motor_control_drive -= 50;
+            status = "RBK";
             break;
 
         case 'h':
@@ -563,5 +613,7 @@ void main_task(intptr_t unused) {
         
         sprintf(lcdstr, "%s D:%d S:%d", status, motor_control_drive, motor_control_steer);
         print(5, lcdstr);
+        sprintf(lcdstr, "%d mV", ev3_battery_voltage_mV());
+        print(6, lcdstr);
     }
 }
