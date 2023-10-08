@@ -248,10 +248,13 @@ void balance_task(intptr_t unused) {
     for(int i = 10; i > 0; --i) { // Max retries: 10 times.
         ercd = calibrate_gyro_sensor();
         if(ercd == E_OK) break;
-        if(i != 1)
+        if(i != 1) {
             syslog(LOG_ERROR, "Calibration failed, retry.");
+            ev3_led_set_color(LED_ORANGE);
+        }
         else {
             syslog(LOG_ERROR, "Max retries for calibration exceeded, exit.");
+            ev3_led_set_color(LED_RED);
             return;
         }
     }
