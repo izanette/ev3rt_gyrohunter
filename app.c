@@ -38,7 +38,7 @@ const float KSTEER=-0.25;
 const float EMAOFFSET = 0.0005f;
       float KGYROANGLE = 6.0f; // 7.5f
       float KGYROSPEED = 1.4f; // 1.15f
-      float KPOS = 0.03f; // 0.07f;
+      float KPOS = 0.035f; // 0.07f;
       float KSPEED = 0.1f;
 const float KDRIVE = -0.02f;
 const float WHEEL_DIAMETER = 5.6;
@@ -165,6 +165,14 @@ static void update_motor_data() {
     motor_speed = (motor_cnt_deltas[0] + motor_cnt_deltas[1] + motor_cnt_deltas[2] + motor_cnt_deltas[3]) / 4.0f / interval_time;
 }
 
+float calculate_battery_gain() {
+    const int kMaxBattery = 8500;
+    const int kMinBattery = 6500;
+    
+    int batt = ev3_battery_voltage_mV();
+    return 0.7 + ((1.12 - 0.7) / (kMaxBattery - kMinBattery)) * (kMaxBattery - batt);
+}
+
 /**
  * Control the power to keep balance.
  * Return false when the robot has fallen.
@@ -181,11 +189,12 @@ static bool_t keep_balance() {
     motor_pos -= motor_control_drive * interval_time;
 
     // This is the main balancing equation
-    int power = (int)((KGYROSPEED * gyro_speed +                // Deg/Sec from Gyro sensor
-                       KGYROANGLE * gyro_angle) / ratio_wheel + // Deg from integral of gyro
-                       KPOS       * motor_pos +                 // From MotorRotationCount of both motors
-                       KSPEED     * motor_speed  +              // Motor speed in Deg/Sec
-                       KDRIVE     * motor_control_drive);       // To improve start/stop performance
+    int power = (int)(((KGYROSPEED * gyro_speed +                // Deg/Sec from Gyro sensor
+                        KGYROANGLE * gyro_angle) / ratio_wheel + // Deg from integral of gyro
+                        KPOS       * motor_pos +                 // From MotorRotationCount of both motors
+                        KSPEED     * motor_speed  +              // Motor speed in Deg/Sec
+                        KDRIVE     * motor_control_drive)        // To improve start/stop performance
+                      * calculate_battery_gain());               // To have a more reliable motor output across diff battery voltages
 
     // Check fallen
     SYSTIM time;
