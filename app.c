@@ -18,6 +18,16 @@
 #define _debug(x)
 #endif
 
+typedef enum {
+    IDLE_STATUS,
+    CALIB_STATUS,
+    RUNNING_STATUS,
+    KNOCK_OUT_STATUS,
+    TNUM_STATUS
+} gyrohunter_status_t;
+
+gyrohunter_status_t gyrohunter_status = IDLE_STATUS;
+
 /**
  * Define the connection ports of the gyro sensor and motors.
  * By default, the Gyro Boy robot uses the following ports:
@@ -241,6 +251,8 @@ void balance_task(intptr_t unused) {
     //TODO: reset the gyro sensor
     ev3_gyro_sensor_reset(gyro_sensor);
 
+    gyrohunter_status = CALIB_STATUS;
+    
     /**
      * Calibrate the gyro sensor and set the led to green if succeeded.
      */
@@ -251,10 +263,12 @@ void balance_task(intptr_t unused) {
         if(i != 1) {
             syslog(LOG_ERROR, "Calibration failed, retry.");
             ev3_led_set_color(LED_ORANGE);
+            tslp_tsk(100);
         }
         else {
             syslog(LOG_ERROR, "Max retries for calibration exceeded, exit.");
             ev3_led_set_color(LED_RED);
+            gyrohunter_status = KNOCK_OUT_STATUS;
             return;
         }
     }
@@ -262,6 +276,8 @@ void balance_task(intptr_t unused) {
     gyro_angle = INIT_GYROANGLE;
     ev3_led_set_color(LED_GREEN);
 
+    gyrohunter_status = RUNNING_STATUS;
+    
     /**
      * Main loop for the self-balance control algorithm
      */
@@ -281,6 +297,7 @@ void balance_task(intptr_t unused) {
             ev3_motor_stop(right_motor, false);
             ev3_led_set_color(LED_RED); // TODO: knock out
             syslog(LOG_NOTICE, "Knock out!");
+            gyrohunter_status = KNOCK_OUT_STATUS;
             return;
         }
 
