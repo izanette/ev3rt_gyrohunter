@@ -495,9 +495,9 @@ void main_task(intptr_t unused) {
                 if (now - last_gun_time > 2000) {
                     ev3_motor_reset_counts(gun_motor);
                     if (c == 'f')
-                        ev3_motor_rotate(gun_motor, 3*360, 70, false);
+                        ev3_motor_rotate(gun_motor, 3*360, 100, false);
                     else
-                        ev3_motor_rotate(gun_motor, -3*360, 70, false);
+                        ev3_motor_rotate(gun_motor, -3*360, 100, false);
                     status = "GUN";
                     get_tim(&last_gun_time);
                 }
