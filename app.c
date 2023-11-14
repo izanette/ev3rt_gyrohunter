@@ -429,8 +429,10 @@ uint8_t get_ir_control() {
     return result;
 }
 
-#define MAX_SPEED 800
+#define MAX_SPEED 600
 #define MAX_STEER 170
+#define SPEED_INC 50
+#define STEER_INC 85
 
 void main_task(intptr_t unused) {
     static SYSTIM last_gun_time = 0;
@@ -534,71 +536,81 @@ void main_task(intptr_t unused) {
             break;
 
         case 'w': // forward
-            if(motor_control_drive < 0)
+            if (motor_control_drive < 0)
                 motor_control_drive = 0;
             else if (motor_control_drive < MAX_SPEED)
-                motor_control_drive += 50;
+                motor_control_drive += SPEED_INC;
             motor_control_steer = 0;
             status = "FWD";
             break;
 
         case 's': // backward
-            if(motor_control_drive > 0)
+            if (motor_control_drive > 0)
                 motor_control_drive = 0;
             else if (motor_control_drive > -MAX_SPEED)
-                motor_control_drive -= 50;
+                motor_control_drive -= SPEED_INC;
             motor_control_steer = 0;
             status = "BCK";
             break;
 
         case 'a': // left
-            if(motor_control_steer < 0)
+            if (motor_control_steer < 0)
                 motor_control_steer = 0;
-            else if (motor_control_steer < MAX_STEER)
-                motor_control_steer += 170;
+            else if (motor_diff >= 0 && motor_control_steer < MAX_STEER)
+                motor_control_steer += STEER_INC;
+            else if (motor_diff < 0 && motor_control_steer < MAX_STEER/2)
+                motor_control_steer += STEER_INC;
             motor_control_drive = 0;
             status = "LFT";
             break;
 
         case 'd': // right
-            if(motor_control_steer > 0)
+            if (motor_control_steer > 0)
                 motor_control_steer = 0;
-            else if (motor_control_steer > -MAX_STEER)
-                motor_control_steer -= 170;
+            else if (motor_diff <= 0 && motor_control_steer > -MAX_STEER)
+                motor_control_steer -= STEER_INC;
+            else if (motor_diff > 0 && motor_control_steer > -MAX_STEER/2)
+                motor_control_steer -= STEER_INC;
             motor_control_drive = 0;
             status = "RGT";
             break;
 
         case 'q': // left forward
-            if(motor_control_steer < 0)
+            if (motor_control_steer < 0)
                 motor_control_steer = 0;
-            else if (motor_control_steer < MAX_STEER)
-                motor_control_steer += 170;
-            if(motor_control_drive < 0)
+            else if (motor_diff >= 0 && motor_control_steer < MAX_STEER)
+                motor_control_steer += STEER_INC;
+            else if (motor_diff < 0 && motor_control_steer < MAX_STEER/2)
+                motor_control_steer += STEER_INC;
+            if (motor_control_drive < 0)
                 motor_control_drive = 0;
             else if (motor_control_drive < MAX_SPEED)
-                motor_control_drive += 50;
+                motor_control_drive += SPEED_INC;
             status = "LFW";
             break;
 
         case 'e': // right forward
-            if(motor_control_steer > 0)
+            if (motor_control_steer > 0)
                 motor_control_steer = 0;
-            else if (motor_control_steer > -MAX_STEER)
-                motor_control_steer -= 170;
-            if(motor_control_drive < 0)
+            else if (motor_diff <= 0 && motor_control_steer > -MAX_STEER)
+                motor_control_steer -= STEER_INC;
+            else if (motor_diff > 0 && motor_control_steer > -MAX_STEER/2)
+                motor_control_steer -= STEER_INC;
+            if (motor_control_drive < 0)
                 motor_control_drive = 0;
             else if (motor_control_drive < MAX_SPEED)
-                motor_control_drive += 50;
+                motor_control_drive += SPEED_INC;
             status = "RFW";
             break;
 
         case 'z': // left backward
-            if(motor_control_steer < 0)
+            if (motor_control_steer < 0)
                 motor_control_steer = 0;
-            else if (motor_control_steer < MAX_STEER)
-                motor_control_steer += 170;
-            if(motor_control_drive > 0)
+            else if (motor_diff >= 0 && motor_control_steer < MAX_STEER)
+                motor_control_steer += STEER_INC;
+            else if (motor_diff < 0 && motor_control_steer < MAX_STEER/2)
+                motor_control_steer += STEER_INC;
+            if (motor_control_drive > 0)
                 motor_control_drive = 0;
             else if (motor_control_drive > -MAX_SPEED)
                 motor_control_drive -= 50;
@@ -606,14 +618,16 @@ void main_task(intptr_t unused) {
             break;
 
         case 'c': // right backward
-            if(motor_control_steer > 0)
+            if (motor_control_steer > 0)
                 motor_control_steer = 0;
-            else if (motor_control_steer > -MAX_STEER)
-                motor_control_steer -= 170;
+            else if (motor_diff <= 0 && motor_control_steer > -MAX_STEER)
+                motor_control_steer -= STEER_INC;
+            else if (motor_diff > 0 && motor_control_steer > -MAX_STEER/2)
+                motor_control_steer -= STEER_INC;
             if(motor_control_drive > 0)
                 motor_control_drive = 0;
             else if (motor_control_drive > -MAX_SPEED)
-                motor_control_drive -= 50;
+                motor_control_drive -= SPEED_INC;
             status = "RBK";
             break;
 
@@ -644,5 +658,7 @@ void main_task(intptr_t unused) {
         print(5, lcdstr);
         sprintf(lcdstr, "%d mV", ev3_battery_voltage_mV());
         print(6, lcdstr);
+        //sprintf(lcdstr, "%d %d %d", motor_diff, motor_diff_target, (motor_diff_target - motor_diff));
+        //print(7, lcdstr);
     }
 }
