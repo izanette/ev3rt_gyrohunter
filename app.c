@@ -9,6 +9,9 @@
 #include "ev3api.h"
 #include "app.h"
 #include "utils.h"
+#include "ev3eyes.h"
+
+#define USE_FACES
 
 #define DEBUG
 
@@ -17,6 +20,15 @@
 #else
 #define _debug(x)
 #endif
+
+#ifdef USE_FACES
+#define DRAW_EYES(idx)               draw_eyes(idx)
+#define DRAW_EYES_AFTER_MS(idx, ms)  draw_eyes_after_ms(idx, ms)
+#else
+#define DRAW_EYES(idx)
+#define DRAW_EYES_AFTER_MS(idx, ms)
+#endif
+
 
 typedef enum {
     IDLE_STATUS,
@@ -437,6 +449,7 @@ uint8_t get_ir_control() {
 void main_task(intptr_t unused) {
     static SYSTIM last_gun_time = 0;
     
+#ifndef USE_FACES
     // Draw information
     lcdfont_t font = EV3_FONT_MEDIUM;
     ev3_lcd_set_font(font);
@@ -454,7 +467,10 @@ void main_task(intptr_t unused) {
     ev3_lcd_draw_string(lcdstr, 0, fonth * 4);
     sprintf(lcdstr, "Port%c:Gun motor", 'A' + gun_motor);
     ev3_lcd_draw_string(lcdstr, 0, fonth * 5);
-
+#else
+    load_eyes_images();
+    draw_eyes(EV3EYE_SLEEPING);
+#endif
     // Register button handlers
     ev3_button_set_on_clicked(BACK_BUTTON, button_clicked_handler, BACK_BUTTON);
     ev3_button_set_on_clicked(ENTER_BUTTON, button_clicked_handler, ENTER_BUTTON);
@@ -481,13 +497,22 @@ void main_task(intptr_t unused) {
     
     tslp_tsk(1000);
     clearScreen();
+#ifndef USE_FACES
     print(0, "App: Gyrohunter");
-    
+#else
+    draw_eyes(EV3EYE_TIRED_MIDDLE);
+#endif
     // wait for the gyro calibration to finish
+#ifndef USE_FACES
     print(1, "Calibrating");
+#endif
     while(gyrohunter_status != RUNNING_STATUS) {
         tslp_tsk(200);
     }
+
+#ifdef USE_FACES
+    draw_eyes(EV3EYE_AWAKE);
+#endif
     
     // go forward a bit
     tslp_tsk(1000);
@@ -496,7 +521,16 @@ void main_task(intptr_t unused) {
     motor_control_drive = 0;
 
     while(1) {
+#ifndef USE_FACES
         update_kparameters();
+#else
+        if (gyrohunter_status == KNOCK_OUT_STATUS)
+        {
+            DRAW_EYES(EV3EYE_DIZZY);
+            tslp_tsk(1000);
+            continue;
+        }
+#endif
         
         char* status = "IDL";
         //while (!ev3_bluetooth_is_connected()) tslp_tsk(100);
@@ -510,11 +544,13 @@ void main_task(intptr_t unused) {
             motor_control_drive = 0;
             motor_control_steer = 0;
             status = "IDL";
+            DRAW_EYES_AFTER_MS(EV3EYE_AWAKE, 1200);
             break;
 
         case 1:
             tslp_tsk(10);
             status = "IDL";
+            DRAW_EYES_AFTER_MS(EV3EYE_AWAKE, 1200);
             break;
 
         case 'f':
@@ -524,6 +560,7 @@ void main_task(intptr_t unused) {
                 ER ercd = get_tim(&now);
                 assert(ercd == E_OK);
                 if (now - last_gun_time > 2000) {
+                    DRAW_EYES(EV3EYE_EVIL);
                     ev3_motor_reset_counts(gun_motor);
                     if (c == 'f')
                         ev3_motor_rotate(gun_motor, 5*360, 100, false);
@@ -536,6 +573,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'w': // forward
+            DRAW_EYES(EV3EYE_NEUTRAL);
             if (motor_control_drive < 0)
                 motor_control_drive = 0;
             else if (motor_control_drive < MAX_SPEED)
@@ -545,6 +583,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 's': // backward
+            DRAW_EYES(EV3EYE_NEUTRAL);
             if (motor_control_drive > 0)
                 motor_control_drive = 0;
             else if (motor_control_drive > -MAX_SPEED)
@@ -554,6 +593,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'a': // left
+            DRAW_EYES(EV3EYE_MIDDLE_LEFT);
             if (motor_control_steer < 0)
                 motor_control_steer = 0;
             else if (motor_diff >= 0 && motor_control_steer < MAX_STEER)
@@ -565,6 +605,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'd': // right
+            DRAW_EYES(EV3EYE_MIDDLE_RIGHT);
             if (motor_control_steer > 0)
                 motor_control_steer = 0;
             else if (motor_diff <= 0 && motor_control_steer > -MAX_STEER)
@@ -576,6 +617,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'q': // left forward
+            DRAW_EYES(EV3EYE_MIDDLE_LEFT);
             if (motor_control_steer < 0)
                 motor_control_steer = 0;
             else if (motor_diff >= 0 && motor_control_steer < MAX_STEER)
@@ -590,6 +632,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'e': // right forward
+            DRAW_EYES(EV3EYE_MIDDLE_RIGHT);
             if (motor_control_steer > 0)
                 motor_control_steer = 0;
             else if (motor_diff <= 0 && motor_control_steer > -MAX_STEER)
@@ -604,6 +647,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'z': // left backward
+            DRAW_EYES(EV3EYE_MIDDLE_LEFT);
             if (motor_control_steer < 0)
                 motor_control_steer = 0;
             else if (motor_diff >= 0 && motor_control_steer < MAX_STEER)
@@ -618,6 +662,7 @@ void main_task(intptr_t unused) {
             break;
 
         case 'c': // right backward
+            DRAW_EYES(EV3EYE_MIDDLE_RIGHT);
             if (motor_control_steer > 0)
                 motor_control_steer = 0;
             else if (motor_diff <= 0 && motor_control_steer > -MAX_STEER)
@@ -654,11 +699,13 @@ void main_task(intptr_t unused) {
             tslp_tsk(10);
         }
         
+#ifndef USE_FACES
         sprintf(lcdstr, "%s D:%d S:%d", status, motor_control_drive, motor_control_steer);
         print(5, lcdstr);
         sprintf(lcdstr, "%d mV", ev3_battery_voltage_mV());
         print(6, lcdstr);
         //sprintf(lcdstr, "%d %d %d", motor_diff, motor_diff_target, (motor_diff_target - motor_diff));
         //print(7, lcdstr);
+#endif
     }
 }
