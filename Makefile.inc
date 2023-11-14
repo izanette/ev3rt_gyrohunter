@@ -1,1 +1,1 @@
-APPL_COBJS += utils.o
+APPL_COBJS += utils.o ev3eyes.o
