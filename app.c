@@ -12,6 +12,7 @@
 #include "ev3eyes.h"
 
 #define USE_FACES
+#define FIRE_TURNS 15
 
 #define DEBUG
 
@@ -563,9 +564,9 @@ void main_task(intptr_t unused) {
                     DRAW_EYES(EV3EYE_EVIL);
                     ev3_motor_reset_counts(gun_motor);
                     if (c == 'f')
-                        ev3_motor_rotate(gun_motor, 5*360, 100, false);
+                        ev3_motor_rotate(gun_motor, FIRE_TURNS*360, 100, false);
                     else
-                        ev3_motor_rotate(gun_motor, -5*360, 100, false);
+                        ev3_motor_rotate(gun_motor, -FIRE_TURNS*360, 100, false);
                     status = "GUN";
                     get_tim(&last_gun_time);
                 }
