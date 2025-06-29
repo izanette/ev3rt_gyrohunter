@@ -138,8 +138,7 @@ static ER calibrate_gyro_sensor() {
 static void update_interval_time() {
     static SYSTIM start_time;
 
-    if(loop_count++ == 0) { // Interval time for the first time (use 6ms as a magic number)
-        //interval_time = 0.006;
+    if(loop_count++ == 0) { // Interval time for the first iteration (use INIT_INTERVAL_TIME)
         interval_time = INIT_INTERVAL_TIME;
         ER ercd = get_tim(&start_time);
         assert(ercd == E_OK);
