@@ -44,7 +44,7 @@ void waitNoButtonPressed()
 {
     while(1)
     {
-        // wait 10 mili-seconds
+        // wait 10 milliseconds
         tslp_tsk(10);
         
         int stop = 1;
