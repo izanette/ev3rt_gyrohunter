@@ -113,17 +113,17 @@ static float motor_pos, motor_speed;
  * Calculate the initial gyro offset for calibration.
  */
 static ER calibrate_gyro_sensor() {
-    int gMn = 1000, gMx = -100, gSum = 0;
+    int min_rate = 1000, max_rate = -100, gSum = 0;
     for (int i = 0; i < 200; ++i) {
         int gyro = ev3_gyro_sensor_get_rate(gyro_sensor);
         gSum += gyro;
-        if (gyro > gMx)
-            gMx = gyro;
-        if (gyro < gMn)
-            gMn = gyro;
+        if (gyro > max_rate)
+            max_rate = gyro;
+        if (gyro < min_rate)
+            min_rate = gyro;
         tslp_tsk(4);
     }
-    if(!(gMx - gMn < 2)) { // TODO: recheck the condition, '!(gMx - gMn < 2)' or '(gMx - gMn < 2)'
+    if(max_rate - min_rate < 2) {
         gyro_offset = gSum / 200.0f;
         return E_OK;
     } else {
