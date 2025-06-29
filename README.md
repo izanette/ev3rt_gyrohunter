@@ -11,6 +11,20 @@ This repository contains an EV3RT application for LEGO® MINDSTORMS EV3 robots. 
 - `utils.c`/`utils.h` – Helper utilities for button handling, timing, and LCD output.
 - `Makefile.inc` – Build configuration for EV3RT.
 
+## Hardware Setup
+
+The code assumes the following sensors and motors are connected:
+
+- **Gyro sensor** – Port 2
+- **Infrared sensor** – Port 4
+- **Left motor** – Port A
+- **Right motor** – Port D
+- **Gun motor** – Port C
+
+These assignments appear near the top of `app.c` and can be changed by
+modifying the constants `gyro_sensor`, `ir_sensor`, `left_motor`,
+`right_motor`, and `gun_motor`.
+
 ## Tasks
 
 `app.cfg` defines three tasks inside the `TDOM_APP` domain:
