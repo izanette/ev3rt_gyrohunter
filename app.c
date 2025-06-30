@@ -324,6 +324,14 @@ static void button_clicked_handler(intptr_t button) {
         break;
     case LEFT_BUTTON:
         syslog(LOG_NOTICE, "Left button clicked.");
+        break;
+    case ENTER_BUTTON:
+        syslog(LOG_NOTICE, "Enter button clicked.");
+        if (gyrohunter_status == KNOCK_OUT_STATUS) {
+            syslog(LOG_NOTICE, "Restarting balance task.");
+            act_tsk(BALANCE_TASK);
+        }
+        break;
     }
 }
 
@@ -527,6 +535,13 @@ void main_task(intptr_t unused) {
         if (gyrohunter_status == KNOCK_OUT_STATUS)
         {
             DRAW_EYES(EV3EYE_DIZZY);
+            if (ev3_button_is_pressed(ENTER_BUTTON)) {
+                waitButtonRelease(ENTER_BUTTON);
+                act_tsk(BALANCE_TASK);
+                while (gyrohunter_status != RUNNING_STATUS) {
+                    tslp_tsk(50);
+                }
+            }
             tslp_tsk(1000);
             continue;
         }

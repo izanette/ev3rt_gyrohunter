@@ -41,6 +41,13 @@ The balancing logic in `app.c` uses gyro and motor feedback. Parameters like `KG
 
 `ev3eyes.c` expects BMP images in `/eyes_imgs` on the EV3 filesystem. The functions load these bitmaps and draw them on the LCD, allowing simple facial expressions while the robot is running.
 
+## Recovering from Falls
+
+If the robot tips over, `balance_task` stops and the status becomes `KNOCK_OUT_STATUS`.
+Press the center (Enter) button to restart the balancing task. The program will
+recalibrate the gyro sensor and resume operation once the status changes to
+`RUNNING_STATUS`.
+
 ## Getting Started
 
 To build and run the program, install the EV3RT toolchain and follow its standard workflow for compiling and deploying applications to the EV3. The code relies on `ev3api.h` from EV3RT.
